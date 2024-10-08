@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/Svengalion/Pastebin/internal/models"
@@ -55,39 +54,80 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 	}
 
 	user := &models.User{
-		Login: req.Login,
-		Email: req.Email,
+		Login:    req.Login,
+		Email:    req.Email,
 		Password: string(hashedPassword),
 	}
 
 	if err := h.Repo.RegisterUser(user); err != nil {
-		switch err
-	}
-}
-
-// AuthUser godoc
-// @Summary Авторизация пользователя
-// @Description Пока что возвращает пользователя по логину
-// @Tags pastes
-// @Accept json
-// @Produce json
-// @Param login path string true "Логин пользователя"
-// @Success 200 {object} models.User
-// @Failure 400 {object} gin.H
-// @Failure 404 {object} gin.H
-// @Failure 500 {object} gin.H
-// @Router /users/auth/{login, password} [get]
-func (h *UserHandler) AuthUser(c *gin.Context) {
-	login, password := c.Param("login"), c.Param("password")
-
-	user, err := h.Repo.AuthUser(login, password)
-	if err != nil {
-		if errors.Is(err, repos.ErrUserNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
+		switch err {
+		case repos.ErrUserEmailAlreadyExist:
+			c.JSON(http.StatusConflict, gin.H{"error": "Email already taken"})
+		case repos.ErrUserLoginAlreadyExist:
+			c.JSON(http.StatusConflict, gin.H{"error": "Login already taken"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, user)
+
+	resp := models.RegisterResponce{
+		Id:        user.ID,
+		Login:     user.Login,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// LoginUser аутентифицирует пользователя и возвращает JWT токен
+// @Summary Аутентификация пользователя
+// @Description Аутентифицирует пользователя по email и паролю и возвращает JWT токен
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body LoginRequest true "Данные для аутентификации"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} gin.H
+// @Failure 401 {object} gin.H
+// @Failure 500 {object} gin.H
+// @Router /users/login [post]
+func (h *UserHandler) LoginUser(c *gin.Context) {
+	var req models.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		return
+	}
+
+	if err := h.Validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		return
+	}
+
+	user, err := h.Repo.GetUserByEmail(req.Email)
+	if err != nil {
+		if err == repos.ErrUserNotFound {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate user"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	token, err := token.GenerateJWT(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	resp := models.LoginResponse{
+		Token: token,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
