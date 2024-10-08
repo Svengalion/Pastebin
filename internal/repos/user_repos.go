@@ -9,7 +9,8 @@ import (
 
 type UserRepos interface {
 	RegisterUser(user *models.User) (err error)
-	AuthUser(login string, password string) (paste *models.User, err error)
+	GetUserByLogin(login string) (user *models.User, err error)
+	GetUserByEmail(email string) (user *models.User, err error)
 }
 
 type userRepos struct {
@@ -36,8 +37,18 @@ func (r *userRepos) RegisterUser(user *models.User) (err error) {
 	return nil
 }
 
-func (r *userRepos) AuthUser(login string, password string) (user *models.User, err error) {
-	if err := r.db.First(&login, "login = ?", login).Error; err != nil {
+func (r *userRepos) GetUserByLogin(login string) (user *models.User, err error) {
+	if err := r.db.Where("login = ?", login).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *userRepos) GetUserByEmail(email string) (user *models.User, err error) {
+	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}

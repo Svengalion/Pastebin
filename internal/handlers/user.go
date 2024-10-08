@@ -7,14 +7,22 @@ import (
 	"github.com/Svengalion/Pastebin/internal/models"
 	"github.com/Svengalion/Pastebin/internal/repos"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
-	Repo repos.UserRepos
+	Repo      repos.UserRepos
+	Validator *validator.Validate
+	JWTSecret []byte
 }
 
-func NewUserHandler(repo repos.UserRepos) *UserHandler {
-	return &UserHandler{Repo: repo}
+func NewUserHandler(repo repos.UserRepos, jwtSecret []byte) *UserHandler {
+	return &UserHandler{
+		Repo:      repo,
+		Validator: validator.New(),
+		JWTSecret: jwtSecret,
+	}
 }
 
 // RegUser godoc
@@ -29,17 +37,32 @@ func NewUserHandler(repo repos.UserRepos) *UserHandler {
 // @Failure 500 {object} gin.H
 // @Router /users/registration [post]
 func (h *UserHandler) RegUser(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req models.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.Repo.RegisterUser(&user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	if err := h.Validator.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, user)
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash your password"})
+		return
+	}
+
+	user := &models.User{
+		Login: req.Login,
+		Email: req.Email,
+		Password: string(hashedPassword),
+	}
+
+	if err := h.Repo.RegisterUser(user); err != nil {
+		switch err
+	}
 }
 
 // AuthUser godoc
