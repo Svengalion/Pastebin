@@ -1,3 +1,4 @@
+// internal/handlers/user.go
 package handlers
 
 import (
@@ -5,6 +6,7 @@ import (
 
 	"github.com/Svengalion/Pastebin/internal/models"
 	"github.com/Svengalion/Pastebin/internal/repos"
+	"github.com/Svengalion/Pastebin/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
@@ -24,17 +26,18 @@ func NewUserHandler(repo repos.UserRepos, jwtSecret []byte) *UserHandler {
 	}
 }
 
-// RegUser godoc
+// RegUser регистрирует нового пользователя
 // @Summary Регистрация нового пользователя
-// @Description Создаёт нового пользователя
+// @Description Создаёт нового пользователя с уникальным логином и email
 // @Tags users
 // @Accept json
 // @Produce json
-// @Param paste body models.User true "Данные пользователя"
-// @Success 201 {object} models.User
+// @Param user body RegisterRequest true "Данные пользователя"
+// @Success 201 {object} RegisterResponse
 // @Failure 400 {object} gin.H
+// @Failure 409 {object} gin.H
 // @Failure 500 {object} gin.H
-// @Router /users/registration [post]
+// @Router /users/register [post]
 func (h *UserHandler) RegUser(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -71,7 +74,7 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 		return
 	}
 
-	resp := models.RegisterResponce{
+	resp := models.RegisterResponse{
 		Id:        user.ID,
 		Login:     user.Login,
 		Email:     user.Email,
@@ -91,7 +94,7 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 // @Failure 400 {object} gin.H
 // @Failure 401 {object} gin.H
 // @Failure 500 {object} gin.H
-// @Router /users/login [post]
+// @Router /users/auth [post]
 func (h *UserHandler) LoginUser(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,7 +122,7 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 		return
 	}
 
-	token, err := token.GenerateJWT(user)
+	token, err := utils.GenerateJWT(user, h.JWTSecret)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return

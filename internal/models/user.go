@@ -1,3 +1,4 @@
+// internal/models/user.go
 package models
 
 import "time"
@@ -17,7 +18,7 @@ type RegisterRequest struct {
 	Password string `json:"password" validate:"required, min=6, max=64"`
 }
 
-type RegisterResponce struct {
+type RegisterResponse struct {
 	Id        uint      `json:"id"`
 	Login     string    `json:"login"`
 	Email     string    `json:"email"`

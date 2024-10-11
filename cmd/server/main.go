@@ -1,3 +1,4 @@
+// cmd/server/main.go
 package main
 
 import (
@@ -6,7 +7,7 @@ import (
 	"os"
 
 	_ "github.com/Svengalion/Pastebin/cmd/server/docs" // Импорт для Swagger
-	"github.com/Svengalion/Pastebin/internal/handlers"
+	"github.com/Svengalion/Pastebin/internal/handlers" // Добавьте, если создадите middleware
 	"github.com/Svengalion/Pastebin/internal/models"
 	"github.com/Svengalion/Pastebin/internal/repos"
 	"github.com/gin-gonic/gin"
@@ -32,21 +33,30 @@ import (
 // @host      localhost:8080
 // @BasePath  /
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Printf("dotenv file not found")
 	}
 
-	//переменные окружения
+	// Переменные окружения
 	dbHost := os.Getenv("DB_HOST")
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASS")
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 	serverPort := os.Getenv("SERVER_PORT")
+	jwtSecret := os.Getenv("JWT_SECRET")
 
-	//строка подключения
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is not set in the environment")
+	}
+
+	// Строка подключения
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		dbHost, dbUser, dbPass, dbName, dbPort)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -54,23 +64,34 @@ func main() {
 		log.Fatalf("Failed to connect to db: %s", err)
 	}
 
+	// Автоматическая миграция моделей
 	if err := db.AutoMigrate(&models.Paste{}, &models.User{}); err != nil {
 		log.Fatalf("Migration error: %s", err)
 	}
 
+	// Инициализация репозиториев и хендлеров
 	pasteRepo := repos.NewPasteRepos(db)
 	pasteHandler := handlers.NewPasteHandler(pasteRepo)
-	userRepo := repos.NewUser(db)
-	userHandler := handlers.NewUserHandler(userRepo)
+	userRepo := repos.NewUserRepos(db) // Предполагается, что NewUserRepos верно инициализирует репозиторий
+	userHandler := handlers.NewUserHandler(userRepo, []byte(jwtSecret))
 
+	// Создание роутера Gin
 	router := gin.Default()
 
-	router.POST("/pastes/new_paste", pasteHandler.CreatePaste)
-	router.GET("/pastes/:hash", pasteHandler.GetPaste)
-	router.POST("/users/registration", userHandler.RegUser)
-	router.GET("/users/auth", userHandler.AuthUser)
+	// Маршруты для пользователей
+	router.POST("/users/register", userHandler.RegUser) // Изменено с /users/registration на /users/register
+	router.POST("/users/auth", userHandler.LoginUser)   // Изменено с GET на POST
+
+	// Защищённые маршруты
+	authorized := router.Group("/")
+	//authorized.Use(middleware.AuthMiddleware([]byte(jwtSecret)))
+	authorized.POST("/pastes/new_paste", pasteHandler.CreatePaste)
+	authorized.GET("/pastes/:hash", pasteHandler.GetPaste)
+
+	// Маршрут для Swagger UI
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Запуск сервера
 	addr := fmt.Sprintf(":%s", serverPort)
 	log.Printf("Server is running at http://localhost%s/", addr)
 	if err := router.Run(addr); err != nil {

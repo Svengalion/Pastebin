@@ -1,3 +1,4 @@
+// internal/models/paste.go
 package models
 
 import (
@@ -9,4 +10,9 @@ type Paste struct {
 	Title     string    `json:"title" binding:"required"`
 	Content   string    `json:"content" binding:"required"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreatePasteRequest struct {
+	Title   string `json:"title" binding:"required"`
+	Content string `json:"content" binding:"required"`
 }

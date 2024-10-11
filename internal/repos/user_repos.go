@@ -1,3 +1,4 @@
+// internal/repos/user_repos.go
 package repos
 
 import (
@@ -17,7 +18,7 @@ type userRepos struct {
 	db *gorm.DB
 }
 
-func NewUser(db *gorm.DB) UserRepos {
+func NewUserRepos(db *gorm.DB) UserRepos {
 	return &userRepos{db}
 }
 

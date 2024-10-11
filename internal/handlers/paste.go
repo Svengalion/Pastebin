@@ -28,12 +28,18 @@ func NewPasteHandler(repo repos.PasteRepos) *PasteHandler {
 // @Success 201 {object} models.Paste
 // @Failure 400 {object} gin.H
 // @Failure 500 {object} gin.H
+// @Security BearerAuth
 // @Router /pastes/new_paste [post]
 func (h *PasteHandler) CreatePaste(c *gin.Context) {
-	var paste models.Paste
-	if err := c.ShouldBindJSON(&paste); err != nil {
+	var req models.CreatePasteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	paste := models.Paste{
+		Title:   req.Title,
+		Content: req.Content,
 	}
 
 	for i := 0; i < 10; i++ {
@@ -70,11 +76,12 @@ func (h *PasteHandler) CreatePaste(c *gin.Context) {
 // @Failure 400 {object} gin.H
 // @Failure 404 {object} gin.H
 // @Failure 500 {object} gin.H
+// @Security BearerAuth
 // @Router /pastes/{hash} [get]
 func (h *PasteHandler) GetPaste(c *gin.Context) {
 	hash := c.Param("hash")
 	if len(hash) != utils.HashSize {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorect hash length"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect hash length"})
 		return
 	}
 
