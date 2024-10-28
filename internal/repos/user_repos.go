@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Svengalion/Pastebin/internal/models"
+	"github.com/jackc/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -24,13 +25,15 @@ func NewUserRepos(db *gorm.DB) UserRepos {
 
 func (r *userRepos) RegisterUser(user *models.User) (err error) {
 	if err := r.db.Create(user).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			existingUser := &models.User{}
-			if err := r.db.Where("login = ?", user.Login).First(existingUser).Error; err == nil {
-				return ErrUserLoginAlreadyExist
-			}
-			if err := r.db.Where("email = ?", user.Email).First(existingUser).Error; err == nil {
-				return ErrUserEmailAlreadyExist
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				if pgErr.ConstraintName == "users_email_key" {
+					return ErrUserEmailAlreadyExist
+				}
+				if pgErr.ConstraintName == "users_login_key" {
+					return ErrUserLoginAlreadyExist
+				}
 			}
 		}
 		return err

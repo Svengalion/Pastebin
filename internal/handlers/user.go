@@ -26,18 +26,6 @@ func NewUserHandler(repo repos.UserRepos, jwtSecret []byte) *UserHandler {
 	}
 }
 
-// RegUser регистрирует нового пользователя
-// @Summary Регистрация нового пользователя
-// @Description Создаёт нового пользователя с уникальным логином и email
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param user body RegisterRequest true "Данные пользователя"
-// @Success 201 {object} RegisterResponse
-// @Failure 400 {object} gin.H
-// @Failure 409 {object} gin.H
-// @Failure 500 {object} gin.H
-// @Router /users/register [post]
 func (h *UserHandler) RegUser(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -83,27 +71,15 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// LoginUser аутентифицирует пользователя и возвращает JWT токен
-// @Summary Аутентификация пользователя
-// @Description Аутентифицирует пользователя по email и паролю и возвращает JWT токен
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param user body LoginRequest true "Данные для аутентификации"
-// @Success 200 {object} LoginResponse
-// @Failure 400 {object} gin.H
-// @Failure 401 {object} gin.H
-// @Failure 500 {object} gin.H
-// @Router /users/auth [post]
 func (h *UserHandler) LoginUser(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.Validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

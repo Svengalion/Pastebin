@@ -6,36 +6,14 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/Svengalion/Pastebin/cmd/server/docs" // Импорт для Swagger
-	"github.com/Svengalion/Pastebin/internal/handlers" // Добавьте, если создадите middleware
+	"github.com/Svengalion/Pastebin/internal/handlers"
 	"github.com/Svengalion/Pastebin/internal/models"
 	"github.com/Svengalion/Pastebin/internal/repos"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
-
-// @title           Pastebin Clone API
-// @version         1.0
-// @description     API документация для Pastebin-клона.
-// @termsOfService  http://swagger.io/terms/
-
-// @contact.name   API Support
-// @contact.url    http://www.swagger.io/support
-// @contact.email  support@swagger.io
-
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
-
-// @host      localhost:8080
-// @BasePath  /
-
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
 
 func main() {
 	err := godotenv.Load()
@@ -72,24 +50,22 @@ func main() {
 	// Инициализация репозиториев и хендлеров
 	pasteRepo := repos.NewPasteRepos(db)
 	pasteHandler := handlers.NewPasteHandler(pasteRepo)
-	userRepo := repos.NewUserRepos(db) // Предполагается, что NewUserRepos верно инициализирует репозиторий
+	userRepo := repos.NewUserRepos(db)
 	userHandler := handlers.NewUserHandler(userRepo, []byte(jwtSecret))
 
 	// Создание роутера Gin
 	router := gin.Default()
 
 	// Маршруты для пользователей
-	router.POST("/users/register", userHandler.RegUser) // Изменено с /users/registration на /users/register
-	router.POST("/users/auth", userHandler.LoginUser)   // Изменено с GET на POST
+	router.POST("/users/register", userHandler.RegUser)
+	router.POST("/users/auth", userHandler.LoginUser)
 
 	// Защищённые маршруты
 	authorized := router.Group("/")
 	//authorized.Use(middleware.AuthMiddleware([]byte(jwtSecret)))
 	authorized.POST("/pastes/new_paste", pasteHandler.CreatePaste)
+	authorized.GET("/pastes/", pasteHandler.GetAllPastes)
 	authorized.GET("/pastes/:hash", pasteHandler.GetPaste)
-
-	// Маршрут для Swagger UI
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Запуск сервера
 	addr := fmt.Sprintf(":%s", serverPort)
