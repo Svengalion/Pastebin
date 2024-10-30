@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/Svengalion/Pastebin/internal/models"
@@ -29,18 +30,21 @@ func NewUserHandler(repo repos.UserRepos, jwtSecret []byte) *UserHandler {
 func (h *UserHandler) RegUser(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Ошибка привязки JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.Validator.Struct(req); err != nil {
+		log.Printf("Ошибка валидации: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash your password"})
+		log.Printf("Ошибка хэширования пароля: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось хэшировать ваш пароль"})
 		return
 	}
 
@@ -51,13 +55,14 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 	}
 
 	if err := h.Repo.RegisterUser(user); err != nil {
+		log.Printf("Ошибка регистрации пользователя: %v", err)
 		switch err {
 		case repos.ErrUserEmailAlreadyExist:
-			c.JSON(http.StatusConflict, gin.H{"error": "Email already taken"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Email уже используется"})
 		case repos.ErrUserLoginAlreadyExist:
-			c.JSON(http.StatusConflict, gin.H{"error": "Login already taken"})
+			c.JSON(http.StatusConflict, gin.H{"error": "Логин уже используется"})
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Не удалось создать пользователя"})
 		}
 		return
 	}
@@ -68,7 +73,7 @@ func (h *UserHandler) RegUser(c *gin.Context) {
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusCreated, resp) // Изменено на StatusCreated
 }
 
 func (h *UserHandler) LoginUser(c *gin.Context) {
