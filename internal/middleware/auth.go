@@ -10,7 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// AuthMiddleware проверяет наличие и валидность JWT токена
 func AuthMiddleware(jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
