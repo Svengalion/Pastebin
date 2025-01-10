@@ -18,22 +18,16 @@ func NewPasteHandler(repo repos.PasteRepos) *PasteHandler {
 	return &PasteHandler{Repo: repo}
 }
 
-// CreatePaste godoc
-// @Summary Создание новой пасты
-// @Description Создаёт новую пасту с уникальным хэшем
-// @Tags pastes
-// @Accept json
-// @Produce json
-// @Param paste body models.CreatePasteRequest true "Паста для создания"
-// @Success 201 {object} models.Paste
-// @Failure 400 {object} gin.H
-// @Failure 500 {object} gin.H
-// @Router /pastes/new_paste [post]
 func (h *PasteHandler) CreatePaste(c *gin.Context) {
-	var paste models.Paste
-	if err := c.ShouldBindJSON(&paste); err != nil {
+	var req models.CreatePasteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	paste := models.Paste{
+		Title:   req.Title,
+		Content: req.Content,
 	}
 
 	for i := 0; i < 10; i++ {
@@ -59,22 +53,10 @@ func (h *PasteHandler) CreatePaste(c *gin.Context) {
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate hash try again"})
 }
 
-// GetPaste godoc
-// @Summary Получение пасты по хэшу
-// @Description Получает пасту по её уникальному хэшу
-// @Tags pastes
-// @Accept json
-// @Produce json
-// @Param hash path string true "Хэш пасты"
-// @Success 200 {object} models.Paste
-// @Failure 400 {object} gin.H
-// @Failure 404 {object} gin.H
-// @Failure 500 {object} gin.H
-// @Router /pastes/{hash} [get]
 func (h *PasteHandler) GetPaste(c *gin.Context) {
 	hash := c.Param("hash")
 	if len(hash) != utils.HashSize {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorect hash length"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect hash length"})
 		return
 	}
 
@@ -88,4 +70,13 @@ func (h *PasteHandler) GetPaste(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, paste)
+}
+
+func (h *PasteHandler) GetAllPastes(c *gin.Context) {
+	pastes, err := h.Repo.GetAllPastes()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve pastes"})
+		return
+	}
+	c.JSON(http.StatusOK, pastes)
 }

@@ -1,3 +1,4 @@
+// internal/repos/paste_repos.go
 package repos
 
 import (
@@ -11,6 +12,7 @@ import (
 type PasteRepos interface {
 	CreatePaste(paste *models.Paste) (err error)
 	GetPaste(hash string) (paste *models.Paste, err error)
+	GetAllPastes() (paste []models.Paste, err error)
 }
 
 type pasteRepos struct {
@@ -40,4 +42,12 @@ func (r *pasteRepos) GetPaste(hash string) (paste *models.Paste, err error) {
 		return nil, err
 	}
 	return paste, nil
+}
+
+func (r *pasteRepos) GetAllPastes() ([]models.Paste, error) {
+	var pastes []models.Paste
+	if err := r.db.Find(&pastes).Error; err != nil {
+		return nil, err
+	}
+	return pastes, nil
 }

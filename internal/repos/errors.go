@@ -1,3 +1,4 @@
+// internal/repos/errors.go
 package repos
 
 import "errors"

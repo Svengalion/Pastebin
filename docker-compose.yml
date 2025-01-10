@@ -1,15 +1,16 @@
 services:
   db:
-    image: postgres:13
+    image: postgres:14
+    container_name: pastebin_db
     restart: always
     environment:
       POSTGRES_USER: pastebin_user
-      POSTGRES_PASSWORD: pastebin_pass
+      POSTGRES_PASSWORD: Radeng4u*
       POSTGRES_DB: pastebin
     ports:
       - "5433:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
 
 volumes:
-  db-data:
+  db_data:
